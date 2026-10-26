@@ -1,0 +1,14 @@
+# Android temporary files and screenshots
+*.png
+*.jpg
+*.xml
+*.apk
+*.log
+
+# Diagnostics dumps
+diagnostics/
+
+# Windows & OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
