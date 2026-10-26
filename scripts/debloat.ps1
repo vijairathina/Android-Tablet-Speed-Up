@@ -20,6 +20,8 @@ $bloatPackages = @(
     
     # Pre-installed OEM bloat / telemetry / demo apps
     "com.baidu.map.location",
+    "com.android.browser",
+    "com.opera.mini.native",
     "com.opera.branding",
     "elink.com",
     "com.sts",
