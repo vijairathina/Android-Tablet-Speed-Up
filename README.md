@@ -222,7 +222,7 @@ Old tablets often have degraded lithium-ion batteries. Background hardware polli
 ```
 Android-Tablet-Speed-Up/
 ├── README.md                          # Comprehensive documentation & troubleshooting guide
-├── .gitignore                         # Excludes large binaries, logs, and screenshots
+├── .gitignore                         # Excludes large binaries, logs, and credentials
 ├── YouTube_WebApk.apk                 # Lightweight YouTube client (5.7 MB, sign-in enabled)
 └── scripts/
     ├── connect_device.ps1             # USB detection and Wi-Fi ADB connector
@@ -233,8 +233,39 @@ Android-Tablet-Speed-Up/
     ├── install_youtube_lite.ps1       # YouTube Lite deployer
     ├── collect_diagnostics.ps1        # System stats and hardware collector
     ├── deep_clean_tablet2.ps1         # Purges non-mandatory apps and user storage
-    └── one_click_speedup.ps1          # Master automated optimization pipeline
+    ├── one_click_speedup.ps1          # Master automated optimization pipeline
+    ├── ha_requirements.txt           # Curated Python dependencies for Home Assistant Core
+    ├── install_ha.sh                  # Installer script for Home Assistant inside PRoot
+    ├── run_esphome.sh                 # Launch script for ESPHome Device Builder (:6052)
+    ├── run_ha.sh                      # Launch script for Home Assistant Core (:8123)
+    └── start_services.sh              # Unified autostart script for wake-lock, SSH, ESPHome & HA
 ```
+
+---
+
+## 🏠 All-in-One Smart Home Server (Home Assistant & ESPHome)
+
+Once the tablet is debloated, Device 2 (iBall Slide Snap 4G2 with 64-bit quad-core ARMv8 and 2GB RAM) can be transformed into a dedicated, self-contained smart home server running 24/7 on your local network.
+
+### Architecture:
+- **Host OS:** Android 7.0 Nougat (API 24) with Termux environment and OpenSSH (`:8022`)
+- **Container:** Debian 13 (Trixie `aarch64`) managed via `proot-distro`
+- **Smart Home Hub:** **Home Assistant Core 2026.2.3** (`:8123`) in isolated Python 3.13 venv
+- **IoT Firmware Builder:** **ESPHome 2026.10.0** + **ESPHome Device Builder 1.26.0** (`:6052`)
+- **Compilation & OTA:** Directly compiles firmware and performs Over-The-Air (OTA) flashing to ESP8266/ESP32 chips directly over Wi-Fi without needing a desktop PC.
+
+### Accessing the Web Interfaces:
+- **Home Assistant Web UI:** `http://<TABLET_IP>:8123`
+- **ESPHome Dashboard:** `http://<TABLET_IP>:6052`
+- **SSH Terminal:** `ssh -p 8022 u0_a108@<TABLET_IP>`
+
+### Automated Background Service:
+The server includes a resilient startup script `scripts/start_services.sh` which:
+1. Acquires a persistent Android wake-lock (`termux-wake-lock`) so background tasks never throttle or sleep.
+2. Starts the OpenSSH daemon (`sshd`).
+3. Starts the ESPHome Device Builder dashboard on port `6052`.
+4. Starts Home Assistant Core on port `8123`.
+5. Automatically restarts or resumes upon device reboot.
 
 ---
 
