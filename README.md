@@ -222,6 +222,7 @@ Old tablets often have degraded lithium-ion batteries. Background hardware polli
 ```
 Android-Tablet-Speed-Up/
 ├── README.md                          # Comprehensive documentation & troubleshooting guide
+├── HOME_ASSISTANT_ESPHOME_GUIDE.md    # Complete step-by-step setup guide for HA + ESPHome
 ├── .gitignore                         # Excludes large binaries, logs, and credentials
 ├── YouTube_WebApk.apk                 # Lightweight YouTube client (5.7 MB, sign-in enabled)
 └── scripts/
@@ -244,6 +245,8 @@ Android-Tablet-Speed-Up/
 ---
 
 ## 🏠 All-in-One Smart Home Server (Home Assistant & ESPHome)
+
+> 📖 **Full Step-by-Step Tutorial:** See the detailed [HOME_ASSISTANT_ESPHOME_GUIDE.md](file:///d:/PY/AndroidDebug/HOME_ASSISTANT_ESPHOME_GUIDE.md) for the complete walkthrough from zero to a fully working server.
 
 Once the tablet is debloated, Device 2 (iBall Slide Snap 4G2 with 64-bit quad-core ARMv8 and 2GB RAM) can be transformed into a dedicated, self-contained smart home server running 24/7 on your local network.
 
