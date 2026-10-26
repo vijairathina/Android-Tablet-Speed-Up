@@ -27,7 +27,7 @@ Tested and verified on:
 ### Device 2: iBall Slide Snap 4G2 (2GB RAM / 16GB Storage)
 | Metric | Before Optimization | After Optimization | Impact |
 | :--- | :--- | :--- | :--- |
-| **Free Storage (`/data`)** | 4.9 GB available | **5.5 GB available** | **+600 MB reclaimed** |
+| **Free Storage (`/data`)** | 4.9 GB available (52% used) | **7.2 GB available (30% used)** | **+2.3 GB reclaimed** |
 | **Background CPU Load** | 57% pegged (GMS, SearchBox, ToonMe) | **<10% idle baseline** | Background drains killed |
 | **YouTube Status** | Broken legacy YouTube / YouTube Kids | **HD YouTube Lite with sign-in** | Smooth 720p/1080p playback |
 | **Free RAM** | ~500 MB | **>1.03 GB free** | Clean background memory pool |
@@ -232,6 +232,7 @@ Android-Tablet-Speed-Up/
     ├── optimize_battery.ps1           # Battery life and background radio optimizer
     ├── install_youtube_lite.ps1       # YouTube Lite deployer
     ├── collect_diagnostics.ps1        # System stats and hardware collector
+    ├── deep_clean_tablet2.ps1         # Purges non-mandatory apps and user storage
     └── one_click_speedup.ps1          # Master automated optimization pipeline
 ```
 
