@@ -412,7 +412,7 @@ To monitor the tablet's battery percentage and charging state directly on the Ho
 
 ---
 
-## ⏰ Step 9: Weekly Automated Maintenance Restart (Every Sunday at 12:00 AM)
+## ⏰ Step 9: Daily Automated Maintenance Restart (Every Night at 12:00 AM)
 
 Running a 24/7 server on a budget Android device can lead to RAM fragmentation over time. MediaTek chipsets feature a native hardware Real-Time Clock (RTC) **Scheduled Power On & Off** feature in the PMIC that powers down the device, and then **powers it back on automatically without pressing the physical power button**:
 
@@ -420,11 +420,11 @@ Running a 24/7 server on a budget Android device can lead to RAM fragmentation o
    ```powershell
    adb shell am start -n com.mediatek.schpwronoff/.AlarmClock
    ```
-2. **Configure Weekly Schedule:**
-   - **Power OFF:** Set to `00:00` (12:00 AM midnight), Repeat on `Sunday`.
-   - **Power ON:** Set to `00:05` (12:05 AM, 5 minutes later), Repeat on `Sunday`.
+2. **Configure Daily Schedule:**
+   - **Power OFF:** Set to `00:00` (12:00 AM midnight), Repeat `Every day`.
+   - **Power ON:** Set to `00:05` (12:05 AM, 5 minutes later), Repeat `Every day`.
 3. **Automated Headless Reboot Cycle:**
-   - Every Sunday at 12:00 AM, Android performs a graceful system shutdown.
+   - Every night at 12:00 AM, Android performs a graceful system shutdown.
    - For 5 minutes, hardware enters zero-power RTC standby, completely clearing RAM and dissipating heat.
    - At 12:05 AM, the hardware RTC alarm fires and **boots Android automatically**.
    - `Termux:Boot` launches upon boot and automatically starts `sshd`, `tailscaled`, `battery_monitor`, `esphome`, and Home Assistant!
