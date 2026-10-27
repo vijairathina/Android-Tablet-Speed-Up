@@ -49,7 +49,7 @@ chmod +x /data/data/com.termux/files/usr/etc/profile.d/hostname.sh
 if [ ! -f /data/data/com.termux/files/usr/bin/hostname.orig ]; then
     cp /data/data/com.termux/files/usr/bin/hostname /data/data/com.termux/files/usr/bin/hostname.orig
 fi
-printf '%s\n' '#!/data/data/com.termux/files/usr/bin/bash' 'if [ "\$#" -eq 0 ]; then' '    cat /data/data/com.termux/files/usr/etc/hostname 2>/dev/null || echo "$Hostname"' 'else' '    /data/data/com.termux/files/usr/bin/hostname.orig "\$@" 2>/dev/null || true' 'fi' > /data/data/com.termux/files/usr/bin/hostname
+printf '%s\n' '#!/data/data/com.termux/files/usr/bin/bash' 'if [ `$# -eq 0 ]; then' '    cat /data/data/com.termux/files/usr/etc/hostname 2>/dev/null || echo "$Hostname"' 'else' '    /data/data/com.termux/files/usr/bin/hostname.orig "`$@" 2>/dev/null || true' 'fi' > /data/data/com.termux/files/usr/bin/hostname
 chmod +x /data/data/com.termux/files/usr/bin/hostname
 termux-fix-shebang /data/data/com.termux/files/usr/bin/hostname 2>/dev/null
 
@@ -71,7 +71,7 @@ echo -e "127.0.0.1 $Hostname localhost\n::1 $Hostname localhost ip6-localhost" >
 if [ ! -f /bin/hostname.orig ]; then
     cp /bin/hostname /bin/hostname.orig
 fi
-printf "%s\n" "#!/bin/bash" "if [ \"\\\$#\" -eq 0 ]; then" "    cat /etc/hostname 2>/dev/null || echo \"$Hostname\"" "else" "    /bin/hostname.orig \"\\\$@\" 2>/dev/null || true" "fi" > /bin/hostname
+printf "%s\n" "#!/bin/bash" "if [ \`$# -eq 0 ]; then" "    cat /etc/hostname 2>/dev/null || echo \"$Hostname\"" "else" "    /bin/hostname.orig \"\`$@\" 2>/dev/null || true" "fi" > /bin/hostname
 chmod +x /bin/hostname
 grep -q "export HOSTNAME=$Hostname" /root/.bashrc || echo "export HOSTNAME=$Hostname" >> /root/.bashrc
 grep -q "export PS1=" /root/.bashrc || echo "export PS1=\"\[\e[0;31m\]\u@$Hostname\[\e[0m\]:\[\e[0;34m\]\w\[\e[0m\]# \"" >> /root/.bashrc
