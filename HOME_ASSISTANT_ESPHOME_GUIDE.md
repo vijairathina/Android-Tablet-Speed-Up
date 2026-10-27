@@ -164,16 +164,27 @@ To ensure that Home Assistant, ESPHome, and SSH start automatically without need
        echo "[+] SSH server started on port 8022"
    fi
 
-   # 3. Disable seccomp filtering for PRoot stability on Android kernels
+   # 3. Start Tailscale daemon in userspace networking mode
+   if command -v tailscaled-start >/dev/null 2>&1; then
+       tailscaled-start
+   fi
+
+   # 4. Start Battery Monitor loop (updates ~/battery.json every 15s)
+   if ! pgrep -f "battery_monitor.sh" >/dev/null; then
+       nohup /data/data/com.termux/files/home/battery_monitor.sh > /dev/null 2>&1 &
+       echo "[+] Battery monitor started"
+   fi
+
+   # 5. Disable seccomp filtering for PRoot stability on Android kernels
    export PROOT_NO_SECCOMP=1
 
-   # 4. Start ESPHome Device Builder Dashboard
+   # 6. Start ESPHome Device Builder Dashboard
    if ! pgrep -f "esphome-device-builder" >/dev/null; then
        nohup proot-distro login debian -- /opt/esphome-venv/bin/esphome-device-builder /root/config/esphome --host 0.0.0.0 --port 6052 > ~/esphome.log 2>&1 &
        echo "[+] ESPHome dashboard started on port 6052"
    fi
 
-   # 5. Start Home Assistant Core
+   # 7. Start Home Assistant Core
    if ! pgrep -f "/opt/ha-venv/bin/hass" >/dev/null; then
        nohup proot-distro login debian -- /opt/ha-venv/bin/hass -c /root/.homeassistant > ~/ha.log 2>&1 &
        echo "[+] Home Assistant Core started on port 8123"
@@ -187,12 +198,217 @@ To ensure that Home Assistant, ESPHome, and SSH start automatically without need
    echo '~/start_services.sh' >> ~/.bashrc
    ```
 
-3. *(Optional)* Setup `Termux:Boot` for automatic launch upon tablet reboot:
-   ```bash
-   mkdir -p ~/.termux/boot
-   cp ~/start_services.sh ~/.termux/boot/start_services.sh
-   chmod +x ~/.termux/boot/start_services.sh
+3. Setup `Termux:Boot` for 100% automated headless startup upon tablet reboot:
+   - Download the official `termux-boot-app` matching your Termux build signature (e.g. `termux-boot-app_v0.8.1+github.debug.apk`).
+   - Install via ADB:
+     ```powershell
+     adb install termux-boot-app_v0.8.1+github.debug.apk
+     ```
+   - Whitelist both Termux and Termux:Boot from Android Doze battery optimizations:
+     ```powershell
+     adb shell dumpsys deviceidle whitelist +com.termux
+     adb shell dumpsys deviceidle whitelist +com.termux.boot
+     ```
+   - Launch Termux:Boot once so Android registers the boot receiver:
+     ```powershell
+     adb shell monkey -p com.termux.boot -c android.intent.category.LAUNCHER 1
+     ```
+   - Copy the startup script into `~/.termux/boot/`:
+     ```bash
+     mkdir -p ~/.termux/boot
+     cp ~/start_services.sh ~/.termux/boot/start_services.sh
+     chmod +x ~/.termux/boot/start_services.sh
+     ```
+
+---
+
+## 📌 Step 6: Set Permanent Static IP via ADB (Headless UI Automation)
+
+On production Android devices (`adbd cannot run as root`), `ip addr add` is blocked (`Permission denied`). You can configure a permanent Static IP directly through Android's native Settings UI using automated ADB input commands:
+
+1. Open Android Wi-Fi Settings:
+   ```powershell
+   adb shell am start -a android.settings.WIFI_SETTINGS
    ```
+2. Long-press your connected Wi-Fi SSID in the list to trigger the context menu:
+   ```powershell
+   adb shell input swipe 200 225 200 225 2000
+   ```
+3. Tap **Modify network**:
+   ```powershell
+   adb shell input tap 330 385
+   ```
+4. Dismiss the on-screen keyboard:
+   ```powershell
+   adb shell input keyevent 111
+   ```
+5. Check **Advanced options** (if not already checked) and set **IP settings** to **Static**.
+6. Tap the **IP address** field, clear previous text, and enter your desired static IP (e.g. `192.168.0.100`):
+   ```powershell
+   adb shell "input tap 530 752; for i in $(seq 1 20); do input keyevent 67; done; input text 192.168.0.100; input keyevent 111"
+   ```
+7. Verify Gateway (`192.168.0.1`), Prefix length (`24`), and DNS (`8.8.8.8`).
+8. Tap **SAVE** (`input tap 504 902`).
+9. Verify the interface adopts the new static IP:
+   ```powershell
+   adb shell ip addr show wlan0
+   ```
+   *(Look for `inet 192.168.0.100/24 ... valid_lft forever`)*
+
+---
+
+## 🔒 Step 7: Remote Access via Tailscale (Userspace Mode)
+
+Tailscale's official Android app requires Android 8.0+ (API 26). However, the standalone Linux `tailscale` and `tailscaled` ARM64 binaries run natively in Termux using **Userspace Networking** (gVisor netstack), requiring **no root access** and **no kernel TUN module**:
+
+1. Download the official Tailscale Linux ARM64 tarball:
+   ```bash
+   cd ~
+   curl -LO https://pkgs.tailscale.com/stable/tailscale_1.104.2_arm64.tgz
+   tar -xzf tailscale_1.104.2_arm64.tgz
+   ```
+2. Install the binaries into Termux's system path:
+   ```bash
+   cp ~/tailscale_1.104.2_arm64/tailscaled /data/data/com.termux/files/usr/bin/tailscaled
+   cp ~/tailscale_1.104.2_arm64/tailscale /data/data/com.termux/files/usr/bin/tailscale.real
+   chmod +x /data/data/com.termux/files/usr/bin/tailscaled /data/data/com.termux/files/usr/bin/tailscale.real
+   ```
+3. Create the `tailscale` CLI wrapper passing the userspace socket:
+   ```bash
+   cat << 'EOF' > /data/data/com.termux/files/usr/bin/tailscale
+   #!/data/data/com.termux/files/usr/bin/bash
+   exec /data/data/com.termux/files/usr/bin/tailscale.real --socket /data/data/com.termux/files/usr/var/run/tailscale/tailscaled.sock "$@"
+   EOF
+   chmod +x /data/data/com.termux/files/usr/bin/tailscale
+   ```
+4. Create the background daemon start script (`/data/data/com.termux/files/usr/bin/tailscaled-start`):
+   ```bash
+   cat << 'EOF' > /data/data/com.termux/files/usr/bin/tailscaled-start
+   #!/data/data/com.termux/files/usr/bin/bash
+   if pgrep -f "/usr/bin/tailscaled" > /dev/null 2>&1; then
+       echo "Tailscaled is already running."
+       exit 0
+   fi
+   mkdir -p /data/data/com.termux/files/usr/var/run/tailscale
+   mkdir -p /data/data/com.termux/files/home/.tailscale
+   rm -f /data/data/com.termux/files/usr/var/run/tailscale/tailscaled.sock
+
+   nohup /data/data/com.termux/files/usr/bin/tailscaled \
+     --tun=userspace-networking \
+     --statedir=/data/data/com.termux/files/home/.tailscale \
+     --socket=/data/data/com.termux/files/usr/var/run/tailscale/tailscaled.sock \
+     --socks5-server=localhost:1055 \
+     --outbound-http-proxy-listen=localhost:1056 \
+     > /data/data/com.termux/files/home/tailscaled.log 2>&1 &
+   EOF
+   chmod +x /data/data/com.termux/files/usr/bin/tailscaled-start
+   ```
+5. Log into Tailscale:
+   ```bash
+   tailscaled-start
+   tailscale login
+   # Or with an auth-key:
+   # tailscale up --authkey=tskey-auth-... --hostname=tablet-ha
+   ```
+   *Follow the authentication link in your browser to authorize the tablet on your tailnet.*
+
+---
+
+## 🔋 Step 8: Detect Tablet Battery & Charging Status in Home Assistant
+
+To monitor the tablet's battery percentage and charging state directly on the Home Assistant dashboard (essential for setting up smart plug battery protection automations to cycle between 20% and 80%):
+
+1. **Install Termux:API App & Package:**
+   - Install `termux-api-app_v0.53.0+github.debug.apk` via ADB:
+     ```powershell
+     adb install termux-api.apk
+     adb shell dumpsys deviceidle whitelist +com.termux.api
+     ```
+   - In Termux, install the CLI companion:
+     ```bash
+     pkg install -y termux-api
+     ```
+   - Verify battery detection:
+     ```bash
+     termux-battery-status
+     ```
+
+2. **Create the Background Battery Monitor:**
+   - Create `~/battery_monitor.sh`:
+     ```bash
+     cat << 'EOF' > ~/battery_monitor.sh
+     #!/data/data/com.termux/files/usr/bin/bash
+     OUT_FILE="/data/data/com.termux/files/home/battery.json"
+     TMP_FILE="/data/data/com.termux/files/home/battery.json.tmp"
+     while true; do
+         if command -v termux-battery-status >/dev/null 2>&1; then
+             termux-battery-status > "$TMP_FILE" 2>/dev/null
+             if [ -s "$TMP_FILE" ]; then
+                 mv "$TMP_FILE" "$OUT_FILE"
+             fi
+         fi
+         sleep 15
+     done
+     EOF
+     chmod +x ~/battery_monitor.sh
+     ```
+
+3. **Configure Home Assistant Sensors:**
+   - In `/root/.homeassistant/configuration.yaml` (inside Debian PRoot), add:
+     ```yaml
+     command_line:
+       - sensor:
+           name: "Tablet Battery Level"
+           unique_id: tablet_battery_level
+           command: "cat /data/data/com.termux/files/home/battery.json"
+           value_template: "{{ value_json.percentage }}"
+           unit_of_measurement: "%"
+           device_class: battery
+           state_class: measurement
+           scan_interval: 15
+       - sensor:
+           name: "Tablet Battery Status"
+           unique_id: tablet_battery_status
+           command: "cat /data/data/com.termux/files/home/battery.json"
+           value_template: "{{ value_json.status }}"
+           icon: "mdi:battery-charging"
+           scan_interval: 15
+       - sensor:
+           name: "Tablet Power Source"
+           unique_id: tablet_power_source
+           command: "cat /data/data/com.termux/files/home/battery.json"
+           value_template: "{{ value_json.plugged }}"
+           icon: "mdi:power-plug"
+           scan_interval: 15
+       - sensor:
+           name: "Tablet Battery Temperature"
+           unique_id: tablet_battery_temperature
+           command: "cat /data/data/com.termux/files/home/battery.json"
+           value_template: "{{ value_json.temperature }}"
+           unit_of_measurement: "°C"
+           device_class: temperature
+           state_class: measurement
+           scan_interval: 15
+       - binary_sensor:
+           name: "Tablet Charging"
+           unique_id: tablet_charging
+           command: "cat /data/data/com.termux/files/home/battery.json"
+           value_template: "{{ value_json.status in ['CHARGING', 'FULL'] or value_json.plugged in ['PLUGGED_USB', 'PLUGGED_AC'] }}"
+           payload_on: "True"
+           payload_off: "False"
+           device_class: battery_charging
+           scan_interval: 15
+     ```
+
+4. **Restart Home Assistant:**
+   ```bash
+   pkill -f "/opt/ha-venv/bin/hass" && ~/start_services.sh
+   ```
+   *Your Home Assistant dashboard now displays:*
+   - **`sensor.tablet_battery_level`** (Shows 0–100% with native battery icon)
+   - **`binary_sensor.tablet_charging`** (`on` when charging, `off` when on battery)
+   - **`sensor.tablet_power_source`** (`PLUGGED_USB`, `PLUGGED_AC`, `UNPLUGGED`)
+   - **`sensor.tablet_battery_temperature`** (Live temperature in °C)
 
 ---
 
@@ -217,6 +433,8 @@ From any phone, tablet, or PC connected to the same Wi-Fi network:
 | Action | Command (via Termux SSH) |
 | :--- | :--- |
 | **Check Port Status** | `netstat -tulpn \| grep -E '8022\|6052\|8123'` |
+| **Check Tailscale Status** | `tailscale status` |
+| **View Battery JSON** | `cat ~/battery.json` |
 | **View Home Assistant Live Log** | `tail -f /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs/root/.homeassistant/home-assistant.log` |
 | **View ESPHome Output** | `cat ~/esphome.log` |
 | **Check RAM & Swap Usage** | `free -m` |
@@ -230,4 +448,7 @@ From any phone, tablet, or PC connected to the same Wi-Fi network:
 2. **Missing FFmpeg warning in HA logs:**
    - Solution: Run `apt-get install -y ffmpeg` inside Debian.
 3. **Wi-Fi IP Address Changed:**
-   - Solution: In your Wi-Fi router's admin panel, create a **DHCP Static IP Reservation** for the tablet's MAC address so the IP address never changes.
+   - Solution: Configure a Static IP on the tablet directly via Android Wi-Fi settings (Step 6) or assign a DHCP reservation in your router.
+4. **Tailscale APK Install Failed (`INSTALL_FAILED_OLDER_SDK`):**
+   - Cause: Official Tailscale Android APK requires API 26 (Android 8.0+), but legacy tablets run Android 7.0 (API 24).
+   - Solution: Run the standalone Linux ARM64 static binary in userspace networking mode inside Termux (Step 7).
