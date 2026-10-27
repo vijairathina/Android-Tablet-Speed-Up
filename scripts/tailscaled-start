@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # Tailscaled background launcher for Termux (Userspace mode)
 
-if pgrep -f "/usr/bin/tailscaled" > /dev/null 2>&1; then
+if pgrep -x tailscaled > /dev/null 2>&1; then
     echo "Tailscaled is already running."
     exit 0
 fi
@@ -16,10 +16,10 @@ nohup /data/data/com.termux/files/usr/bin/tailscaled \
   --socket=/data/data/com.termux/files/usr/var/run/tailscale/tailscaled.sock \
   --socks5-server=localhost:1055 \
   --outbound-http-proxy-listen=localhost:1056 \
-  > /data/data/com.termux/files/home/tailscaled.log 2>&1 &
+  < /dev/null > /data/data/com.termux/files/home/tailscaled.log 2>&1 &
 
 sleep 2
-PID=$(pgrep -f "/usr/bin/tailscaled")
+PID=$(pgrep -x tailscaled)
 if [ -n "$PID" ]; then
     echo "Tailscaled started successfully with PID $PID."
 else

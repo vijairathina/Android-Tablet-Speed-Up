@@ -431,6 +431,26 @@ Running a 24/7 server on a budget Android device can lead to RAM fragmentation o
 
 ---
 
+## 🏷️ Step 10: Set Device Hostname to `tablet` Across All Environments
+
+To ensure the server is identified consistently across your home network, SSH terminals, and Tailscale VPN without messy generic IDs:
+
+1. **Run the One-Click Hostname Setup Script:**
+   ```powershell
+   .\scripts\set_hostname.ps1 -DeviceIp "<TABLET_IP>" -Hostname "tablet"
+   ```
+
+2. **What this script configures automatically:**
+   - **Android OS Properties:** Sets `device_name` and `bluetooth_name` to `tablet` in Android Settings.
+   - **Termux Environment:** Sets `/data/data/com.termux/files/usr/etc/hostname` to `tablet`, updates `/etc/hosts`, configures `HOSTNAME=tablet` in login profile, and customizes `PS1` prompt to `u0_a108@tablet:~$ `.
+   - **Debian PRoot Container:** Sets `/etc/hostname` and `/etc/hosts`, sets shell prompt to `root@tablet:~# `, and wraps `hostname` binary so system queries return `tablet`.
+   - **Tailscale VPN:** Registers `--hostname=tablet`, enabling remote access anywhere via:
+     - `http://tablet:8123` (Home Assistant)
+     - `http://tablet:6052` (ESPHome)
+     - `ssh -p 8022 u0_a108@tablet` (OpenSSH)
+
+---
+
 ## 🌐 Verifying & Using the Server
 
 From any phone, tablet, or PC connected to the same Wi-Fi network:
