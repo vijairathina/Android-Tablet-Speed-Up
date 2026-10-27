@@ -72,7 +72,7 @@ Debian provides standard glibc support and pre-compiled wheels for Python packag
    apt-get update -y
    apt-get install -y --no-install-recommends \
        python3 python3-pip python3-venv python3-dev \
-       build-essential gcc gcc-aarch64-linux-gnu \
+       build-essential gcc gcc-aarch64-linux-gnu g++ g++-aarch64-linux-gnu \
        libffi-dev libssl-dev libjpeg-dev zlib1g-dev \
        libpcap-dev libturbojpeg0-dev libsqlite3-dev \
        libxml2-dev libxslt1-dev ffmpeg ca-certificates curl
@@ -115,13 +115,16 @@ Home Assistant Core requires specific dependency alignment to avoid PyPI resolve
    /opt/ha-venv/bin/pip install --upgrade pip wheel setuptools uv
    ```
 
-2. Pre-install dependencies to resolve the upstream `cryptography` / `bluetooth` conflict:
+2. Pre-install dependencies to resolve the upstream `cryptography` / `bluetooth` conflict and build assist pipeline C++ extensions:
    ```bash
    # Pin cryptography to the version required by Home Assistant Core 2026.2.x
    /opt/ha-venv/bin/pip install cryptography==46.0.5 pyopenssl==25.3.0
    /opt/ha-venv/bin/pip install --no-deps bluetooth-data-tools==1.29.24
    /opt/ha-venv/bin/pip install habluetooth
    /opt/ha-venv/bin/pip install --no-deps home-assistant-bluetooth
+
+   # Pre-compile C++ assist packages (prevents 'Loading data' UI hang upon login)
+   /opt/ha-venv/bin/pip install pymicro-vad==1.0.1 pyspeex-noise==1.0.2
    ```
 
 3. Install Home Assistant Core:
